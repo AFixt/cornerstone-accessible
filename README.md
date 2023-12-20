@@ -1,3 +1,5 @@
+NOTE: As of now, this is just a fork. No work has been done to make it accessible.  GitHub does not allow changing the visibility of a Fork.
+
 # Cornerstone
 ![tests](https://github.com/bigcommerce/cornerstone/workflows/Theme%20Bundling%20Test/badge.svg?branch=master)
 
