@@ -1,10 +1,10 @@
 {
   "name": "Cornerstone",
-  "version": "6.13.0-rc.1",
+  "version": "6.17.0",
   "template_engine": "handlebars_v4",
   "meta": {
     "price": 0,
-    "documentation_url": "https://support.bigcommerce.com/articles/Public/Cornerstone-Theme-Manual",
+    "documentation_url": "https://support.bigcommerce.com/s/article/Cornerstone-Theme-Manual",
     "author_name": "BigCommerce",
     "author_email": "support@bigcommerce.com",
     "author_support_url": "https://support.bigcommerce.com/",
@@ -20,7 +20,6 @@
       "product_comparison_table",
       "complex_search_filtering",
       "customizable_product_selector",
-      "cart_suggested_products",
       "free_customer_support",
       "free_theme_upgrades",
       "high_res_product_images",
@@ -44,6 +43,30 @@
     "Firefox ESR"
   ],
   "settings": {
+    "channels": [
+      {
+        "id": 1,
+        "name": "Light",
+        "code": "Light",
+        "is_active": true,
+        "switch_url": "https://cornerstone-light-demo.mybigcommerce.com"
+      },
+      {
+        "id": 2,
+        "name": "Bold",
+        "code": "Bold",
+        "is_active": false,
+        "switch_url": "https://cornerstone-bold-demo.mybigcommerce.com"
+      },
+      {
+        "id": 3,
+        "name": "Warm",
+        "code": "Warm",
+        "is_active": false,
+        "switch_url": "https://cornerstone-warm-demo.mybigcommerce.com"
+      }
+    ],
+    "show_channels": false,
     "hide_breadcrumbs": false,
     "hide_page_heading": false,
     "hide_category_page_heading": false,
@@ -180,7 +203,7 @@
     "carousel-arrow-color--hover": "#474747",
     "carousel-arrow-bgColor": "#ffffff",
     "carousel-arrow-borderColor": "#ffffff",
-    "carousel-play-pause-button-textColor": "8f8f8f",
+    "carousel-play-pause-button-textColor": "#8f8f8f",
     "carousel-play-pause-button-textColor--hover": "#474747",
     "carousel-play-pause-button-bgColor": "#ffffff",
     "carousel-play-pause-button-borderColor": "#ffffff",
@@ -355,6 +378,7 @@
       "american_express",
       "diners_club",
       "discover",
+      "jcb",
       "mastercard",
       "unionpay",
       "visa"
