@@ -1,5 +1,7 @@
 import Wishlist from '../wishlist';
 import { initRadioOptions } from './aria';
+import PicklistBackorder from './picklist-backorder';
+import { findByBackorderMessageIdOrDefault } from './utils/backorder-utils';
 
 const optionsTypesMap = {
     INPUT_FILE: 'input-file',
@@ -17,10 +19,13 @@ const optionsTypesMap = {
 
 export function optionChangeDecorator(areDefaultOptionsSet) {
     return (err, response) => {
+        if (err) return;
         const attributesData = response.data || {};
         const attributesContent = response.content || {};
 
         this.updateProductAttributes(attributesData);
+        // Disable-and-hide option hiding is a PDP-only feature; the cart editor uses this decorator,
+        // so it is wired into product-details.js directly instead of here.
         if (areDefaultOptionsSet) {
             this.updateView(attributesData, attributesContent);
         } else {
@@ -33,6 +38,7 @@ export default class ProductDetailsBase {
     constructor($scope, context) {
         this.$scope = $scope;
         this.context = context;
+        this.picklistBackorder = new PicklistBackorder($scope, this.context);
         this.initRadioAttributes();
         Wishlist.load(this.context);
         this.getTabRequests();
@@ -42,6 +48,10 @@ export default class ProductDetailsBase {
 
             this._makeProductVariantAccessible(value, type);
         });
+
+        if ((parseInt(this.context.availableToSell, 10) || 0) > 0) {
+            this.toggleSoldOutAlert(true);
+        }
     }
 
     _makeProductVariantAccessible(variantDomNode, variantType) {
@@ -116,6 +126,201 @@ export default class ProductDetailsBase {
     }
 
     /**
+     * Hide option values that would complete a "disable and hide" rule for the current selection.
+     * The server recomputes `disabled_option_values` on every option change, so a
+     * value belonging to a multi-attribute rule only appears once the rule's other attributes are
+     * selected ("show, then hide on selection"). The list is selection-relative, so values hidden
+     * on a previous change are re-shown when they drop out of it.
+     * @param  {Object} data Product attribute data
+     */
+    updateDisabledOptionValues(data) {
+        const disabledOptionValues = data.disabled_option_values;
+
+        if (!Array.isArray(disabledOptionValues)) {
+            return;
+        }
+
+        const disabledValueIds = new Set(
+            disabledOptionValues.map(({ value_id: valueId }) => parseInt(valueId, 10)),
+        );
+
+        const hiddenSelectedAttributes = [];
+
+        $('[data-product-attribute-value]', this.$scope).each((i, attribute) => {
+            const $attribute = $(attribute);
+            const valueId = parseInt($attribute.data('productAttributeValue'), 10);
+
+            if (disabledValueIds.has(valueId)) {
+                // Remember a hidden value that is the current selection so we can move the option
+                // to a valid value afterwards (e.g. the product's default values are the forbidden
+                // combination, so the rule's last value must be hidden even though it is selected).
+                // Checked before disableAttribute() resets a select's selection below.
+                if (this.isValueSelected($attribute)) {
+                    hiddenSelectedAttributes.push($attribute);
+                }
+                this.disableAttribute($attribute, 'hide_option', '');
+                $attribute.data('ruleHidden', true);
+            } else if ($attribute.data('ruleHidden') === true) {
+                // This value was hidden by the rule and no longer is. Re-show it only if
+                // out-of-stock handling is not also hiding it, so we don't reveal a value the
+                // stock logic in updateProductAttributes() kept hidden.
+                $attribute.data('ruleHidden', false);
+                if (!this.isHiddenByStock(data, valueId)) {
+                    this.enableAttribute($attribute, 'hide_option', '');
+                }
+            }
+        });
+
+        this.reselectHiddenSelectedValues(hiddenSelectedAttributes, disabledValueIds, data);
+    }
+
+    /**
+     * Whether out-of-stock handling hides the given value. Only the `hide_option` behavior hides
+     * values; a value is hidden when it is absent from `in_stock_attributes`.
+     * @param  {Object} data Product attribute data
+     * @param  {number} valueId attribute value id
+     * @return {boolean}
+     */
+    isHiddenByStock(data, valueId) {
+        if (data.out_of_stock_behavior !== 'hide_option') {
+            return false;
+        }
+
+        const inStockIds = Array.isArray(data.in_stock_attributes) ? data.in_stock_attributes : [];
+
+        return !inStockIds.includes(valueId);
+    }
+
+    /**
+     * Resolve the radio input associated with a [data-product-attribute-value] label. Radio,
+     * rectangle and swatch options render the value as a <label for="..."> whose input is a
+     * sibling, so the input is looked up by the label's `for` attribute. Returns an empty set for
+     * options without a linked input (e.g. select <option>s, which handle reselection themselves).
+     * @param  {Object} $attribute jQuery wrapped [data-product-attribute-value] element
+     * @return {Object} jQuery wrapped input, empty when there is no linked input
+     */
+    getAttributeValueInput($attribute) {
+        const inputId = $attribute.attr('for');
+
+        return inputId ? $(`#${inputId}`, this.$scope) : $();
+    }
+
+    /**
+     * Whether the given option value is currently selected. Radio/rectangle/swatch values are
+     * `<label for="...">` linked to an input; select values are `<option>` elements.
+     * @param  {Object} $attribute jQuery wrapped [data-product-attribute-value] element
+     * @return {boolean}
+     */
+    isValueSelected($attribute) {
+        const $input = this.getAttributeValueInput($attribute);
+
+        if ($input.length) {
+            return $input.prop('checked') === true;
+        }
+
+        return $attribute.is('option') && $attribute.prop('selected') === true;
+    }
+
+    /**
+     * When a "disable and hide" rule hides the currently selected value of an option (typically
+     * because the product's default option values are themselves the forbidden combination), move
+     * that option back to its default value (when that default is still available) and fire a single
+     * change so the server recomputes the disabled values for the corrected selection. We only ever
+     * auto-select the option's default value — never a non-default one — so we don't silently pick a
+     * value the shopper didn't choose. If the default is itself unavailable (hidden/out of stock),
+     * the option is left with no selection and the shopper must choose.
+     * @param {Object[]} hiddenSelectedAttributes selected value labels that were just hidden
+     * @param {Set} disabledValueIds value ids hidden for the current selection
+     * @param {Object} data Product attribute data
+     */
+    reselectHiddenSelectedValues(hiddenSelectedAttributes, disabledValueIds, data) {
+        let $changeTrigger = null;
+
+        hiddenSelectedAttributes.forEach($hiddenAttribute => {
+            const $option = $hiddenAttribute.closest('[data-product-attribute]');
+            const isSelect = this.getAttributeType($hiddenAttribute) === 'set-select';
+            let $targetInput = null;
+            let $targetOption = null;
+
+            $('[data-product-attribute-value]', $option).each((i, attribute) => {
+                const $attribute = $(attribute);
+                const valueId = parseInt($attribute.data('productAttributeValue'), 10);
+
+                // Skip values the rule hides or that are out of stock, so we never move the
+                // selection onto a value that should not be selectable.
+                if (disabledValueIds.has(valueId) || this.isHiddenByStock(data, valueId)) {
+                    return true;
+                }
+
+                if (isSelect) {
+                    // Skip the empty/placeholder <option> so we land on a real value.
+                    if (($attribute.attr('value') ?? '') === '') {
+                        return true;
+                    }
+                    // Only snap to the option's default value, never a non-default one.
+                    if (!$attribute.is('[data-default]')) {
+                        return true;
+                    }
+                    $targetOption = $attribute;
+
+                    return false;
+                }
+
+                const $input = this.getAttributeValueInput($attribute);
+                // Only snap to the option's default value, never a non-default one.
+                if ($input.length && !$input.prop('disabled') && $input.is('[data-default]')) {
+                    $targetInput = $input;
+
+                    return false;
+                }
+
+                return true;
+            });
+
+            if (isSelect) {
+                const $select = $hiddenAttribute.closest('select');
+                if (!$targetOption) {
+                    // No default to move to; disableAttribute() already reset the select to its
+                    // placeholder. Still fire a change so the view re-syncs to the now-empty
+                    // selection (message/cart/price) for the corrected combination.
+                    $changeTrigger = $select;
+
+                    return;
+                }
+                // Point the select at its default value and fire change so the form refreshes.
+                $select.val($targetOption.attr('value'));
+                $changeTrigger = $select;
+
+                return;
+            }
+
+            // Always deselect the hidden value so a forbidden radio/swatch can't stay checked and be
+            // submitted (selects already reset to their placeholder when hidden).
+            const $hiddenInput = this.getAttributeValueInput($hiddenAttribute);
+            $hiddenInput.prop('checked', false).data('state', false);
+
+            if (!$targetInput) {
+                // No default to fall back to; the value is deselected. Fire a change so the view
+                // re-syncs to the now-empty selection instead of leaving a stale unavailable message
+                // for the broken combination (BCData carries no purchasing_message on load).
+                $changeTrigger = $hiddenInput;
+
+                return;
+            }
+
+            $targetInput.prop('checked', true).data('state', true);
+            $changeTrigger = $targetInput;
+        });
+
+        if ($changeTrigger) {
+            // Defer the change so it does not re-enter the in-flight optionChange callback that is
+            // still applying the pre-correction response. Firing it after the current call stack
+            // lets that pass finish, then this triggers a fresh fetch for the corrected selection.
+            setTimeout(() => $changeTrigger.trigger('change'), 0);
+        }
+    }
+
+    /**
      * Check for fragment identifier in URL requesting a specific tab
      */
     getTabRequests() {
@@ -187,6 +392,10 @@ export default class ProductDetailsBase {
                 $container: $('.form-field--stock', $scope),
                 $input: $('[data-product-stock]', $scope),
             },
+            $backordered: $('[data-product-backordered]', $scope),
+            $backorderedQtyMessage: $('[data-qty-backordered-message]', $scope),
+            $backorderMessage: $('[data-backorder-message]', $scope),
+            $backorderPrompt: $('[data-backorder-prompt]', $scope),
             sku: {
                 $label: $('dt.sku-label', $scope),
                 $value: $('[data-product-sku]', $scope),
@@ -218,6 +427,177 @@ export default class ProductDetailsBase {
         viewModel.priceLabel.$span.hide();
         viewModel.priceWithTax.$div.hide();
         viewModel.priceWithoutTax.$div.hide();
+    }
+
+    updateQtyBackorderedMessage(qty, passedViewModel) {
+        const viewModel = passedViewModel || this.getViewModel(this.$scope);
+
+        if (!viewModel.$backordered.length) return;
+
+        const contextOnHand = parseInt(this.context.availableOnHand, 10);
+        const stockFromDom = parseInt(viewModel.stock.$input.text(), 10);
+        let onHand = 0;
+
+        if (!Number.isNaN(contextOnHand) && contextOnHand > 0) {
+            onHand = contextOnHand;
+        } else if (!Number.isNaN(stockFromDom)) {
+            onHand = stockFromDom;
+        }
+
+        const unlimited = this.context.unlimitedBackorder === true;
+        const availableForBackorder = unlimited
+            ? Infinity
+            : parseInt(this.context.availableForBackorder, 10) || 0;
+        this.backorderedQty = Math.max(0, Math.min(qty - onHand, availableForBackorder));
+
+        if (this.context.showQuantityOnBackorder !== false && this.backorderedQty > 0) {
+            const message = this.context.quantityBackorderedMessage
+                ? this.context.quantityBackorderedMessage.replace('__QTY__', this.backorderedQty)
+                : `${this.backorderedQty} will be backordered`;
+            viewModel.$backorderedQtyMessage.text(message);
+        } else {
+            viewModel.$backorderedQtyMessage.text('');
+        }
+    }
+
+    updateBackorderMessage(passedViewModel) {
+        const viewModel = passedViewModel || this.getViewModel(this.$scope);
+
+        if (!viewModel.$backordered.length) return;
+
+        if (!this.backorderedQty || this.backorderedQty <= 0) {
+            viewModel.$backorderMessage.text('');
+            return;
+        }
+
+        const { showBackorderMessage, backorderMessages, backorderMessageId } = this.context;
+
+        if (showBackorderMessage && Array.isArray(backorderMessages)) {
+            const messageObj = findByBackorderMessageIdOrDefault(backorderMessages, backorderMessageId);
+            if (messageObj) {
+                viewModel.$backorderMessage.text(messageObj.message);
+                return;
+            }
+        }
+
+        viewModel.$backorderMessage.text('');
+    }
+
+    toggleBackorderedContainer(viewModel) {
+        const hasContent = viewModel.$backorderedQtyMessage.text().trim() !== ''
+            || viewModel.$backorderMessage.text().trim() !== '';
+
+        if (hasContent) {
+            viewModel.$backordered.show();
+        } else {
+            viewModel.$backordered.hide();
+        }
+    }
+
+    updateAddToCartForQty(qty, passedViewModel) {
+        const viewModel = passedViewModel || this.getViewModel(this.$scope);
+        const $variantMessage = $('#add-to-cart-wrapper .productAttributes-message', this.$scope);
+        const unlimited = this.context.unlimitedBackorder === true;
+        const availableToSell = unlimited
+            ? Infinity
+            : parseInt(this.context.availableToSell, 10) || 0;
+
+        // The main product's sell-limit takes priority over any picklist limit.
+        if (availableToSell > 0 && qty > availableToSell) {
+            const template = this.context.quantityMaxMessage || 'The maximum purchasable quantity is __QTY__';
+            this.showQtyLimitMessage(viewModel, $variantMessage, template.replace('__QTY__', availableToSell));
+            return;
+        }
+
+        // A selected picklist item may exhaust its own available-to-sell before the
+        // main product does. Surface its limit and block add-to-cart in that case.
+        const picklistLimit = this.picklistBackorder
+            && this.picklistBackorder.getSellLimitViolation(qty);
+
+        if (picklistLimit) {
+            const template = this.context.quantityMaxPicklistMessage
+                || 'The maximum purchasable quantity for __NAME__ is __QTY__';
+            const message = template
+                .replace('__NAME__', picklistLimit.name)
+                .replace('__QTY__', picklistLimit.availableToSell);
+            this.showQtyLimitMessage(viewModel, $variantMessage, message);
+            return;
+        }
+
+        // No sell-limit exceeded. Preserve the legacy behaviour of not touching the
+        // add-to-cart state when the main sell-limit is unknown (handled by OOS logic),
+        // but still clear a stale qty-limit message we may have shown previously.
+        this.clearQtyLimitMessage(viewModel, $variantMessage, availableToSell > 0);
+    }
+
+    showQtyLimitMessage(viewModel, $variantMessage, message) {
+        viewModel.$addToCart.prop('disabled', true);
+        $('.alertBox-message', $variantMessage).text(message);
+        $variantMessage.attr('data-qty-limit', 'true').show();
+    }
+
+    clearQtyLimitMessage(viewModel, $variantMessage, reEnable) {
+        const hadQtyLimit = $variantMessage.attr('data-qty-limit') === 'true';
+
+        // Re-enable when the main sell-limit is known (legacy behaviour) or when we
+        // are clearing a qty-limit message we set ourselves — otherwise a button
+        // disabled by a picklist limit would stay disabled once the qty drops back
+        // into range while the main ATS is unknown. The increments guard still keeps
+        // an out-of-stock button disabled.
+        if ((reEnable || hadQtyLimit) && !viewModel.$increments.prop('disabled')) {
+            viewModel.$addToCart.prop('disabled', false);
+        }
+
+        if (hadQtyLimit) {
+            $variantMessage.removeAttr('data-qty-limit').hide();
+            $('.alertBox-message', $variantMessage).text('');
+        }
+    }
+
+    updateBackorderContext(data) {
+        if (typeof data.available_on_hand === 'number') {
+            this.context.availableOnHand = data.available_on_hand;
+        } else if (typeof data.stock === 'number') {
+            this.context.availableOnHand = data.stock;
+        }
+        if (typeof data.available_for_backorder === 'number') {
+            this.context.availableForBackorder = data.available_for_backorder;
+        }
+        if (typeof data.available_to_sell === 'number') {
+            this.context.availableToSell = data.available_to_sell;
+        }
+        if (typeof data.show_backorder_availability_prompt === 'boolean') {
+            this.context.showBackorderAvailabilityPrompt = data.show_backorder_availability_prompt;
+        }
+        if (typeof data.backorder_availability_prompt === 'string') {
+            this.context.backorderAvailabilityPrompt = data.backorder_availability_prompt;
+        }
+        if (typeof data.unlimited_backorder === 'boolean') {
+            this.context.unlimitedBackorder = data.unlimited_backorder;
+        }
+        this.context.backorderMessageId = data.backorder_message_id ?? null;
+    }
+
+    updateBackorderPrompt(passedViewModel) {
+        const viewModel = passedViewModel || this.getViewModel(this.$scope);
+
+        if (!viewModel.$backorderPrompt.length) return;
+
+        const showPrompt = this.context.showBackorderAvailabilityPrompt;
+        const unlimited = this.context.unlimitedBackorder === true;
+        const availableForBackorder = unlimited
+            ? Infinity
+            : parseInt(this.context.availableForBackorder, 10) || 0;
+        const availableToSell = unlimited
+            ? Infinity
+            : parseInt(this.context.availableToSell, 10) || 0;
+        const promptText = this.context.backorderAvailabilityPrompt;
+
+        if (showPrompt && availableToSell > 0 && availableForBackorder > 0 && promptText) {
+            viewModel.$backorderPrompt.text(promptText).show();
+        } else {
+            viewModel.$backorderPrompt.hide();
+        }
     }
 
     /**
@@ -273,7 +653,17 @@ export default class ProductDetailsBase {
             viewModel.stock.$input.text(data.stock);
         }
 
+        this.updateBackorderContext(data);
+        this.updateBackorderPrompt(viewModel);
+
+        const currentQty = parseInt(viewModel.quantity.$input.val(), 10) || 0;
+        this.updateQtyBackorderedMessage(currentQty, viewModel);
+        this.updateBackorderMessage(viewModel);
+        this.toggleBackorderedContainer(viewModel);
+        this.picklistBackorder.render(data, currentQty);
+
         this.updateDefaultAttributesForOOS(data);
+        this.updateAddToCartForQty(currentQty, viewModel);
         this.updateWalletButtonsView(data);
 
         // If Bulk Pricing rendered HTML is available
@@ -346,37 +736,61 @@ export default class ProductDetailsBase {
     }
 
     /**
-     * Show an message box if a message is passed
-     * Hide the box if the message is empty
+     * Show variant-level error message box if a message is passed
+     * Hide the box if the message is empty or if product-level error message box is already present
      * @param  {String} message
      */
     showMessageBox(message) {
-        const $messageBox = $('.productAttributes-message');
+        const $variantErrorBox = $('.productAttributes-message', this.$scope);
+        const $productErrorBox = $('.alertBox--error', this.$scope).not('.productAttributes-message');
 
-        if (message) {
-            $('.alertBox-message', $messageBox).text(message);
-            $messageBox.show();
-        } else {
-            $messageBox.hide();
+        if (!message || $productErrorBox.length) {
+            $variantErrorBox.hide();
+            return;
         }
+
+        $('.alertBox-message', $variantErrorBox).text(message);
+        $variantErrorBox.show();
     }
 
     updateDefaultAttributesForOOS(data) {
         const viewModel = this.getViewModel(this.$scope);
-        if (!data.purchasable || !data.instock) {
+        const dataAvailableToSell = typeof data.available_to_sell === 'number'
+            ? data.available_to_sell
+            : parseInt(this.context.availableToSell, 10) || 0;
+        const canSell = data.instock || dataAvailableToSell > 0;
+        if (!data.purchasable || !canSell) {
             viewModel.$addToCart.prop('disabled', true);
             viewModel.$increments.prop('disabled', true);
         } else {
             viewModel.$addToCart.prop('disabled', false);
             viewModel.$increments.prop('disabled', false);
         }
+
+        this.toggleSoldOutAlert(canSell);
+    }
+
+    toggleSoldOutAlert(canSell) {
+        const $soldOut = $('#add-to-cart-wrapper .alertBox--error', this.$scope).not('.productAttributes-message');
+        const $variantMessage = $('#add-to-cart-wrapper .productAttributes-message', this.$scope);
+
+        if (canSell) {
+            $soldOut.hide();
+            $variantMessage.hide();
+        } else if ($soldOut.length) {
+            $soldOut.show();
+        }
     }
 
     updateWalletButtonsView(data) {
         const viewModel = this.getViewModel(this.$scope);
-        const isValidForm = viewModel.$addToCartForm[0].checkValidity();
+        const isValidForm = viewModel.$addToCartForm?.[0]?.checkValidity() ?? true;
+        const dataAvailableToSell = typeof data.available_to_sell === 'number'
+            ? data.available_to_sell
+            : parseInt(this.context.availableToSell, 10) || 0;
+        const canSell = data.instock || dataAvailableToSell > 0;
 
-        this.toggleWalletButtonsVisibility(isValidForm && data.purchasable && data.instock);
+        this.toggleWalletButtonsVisibility(isValidForm && data.purchasable && canSell);
     }
 
     toggleWalletButtonsVisibility(shouldShow) {

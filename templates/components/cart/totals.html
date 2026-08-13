@@ -26,7 +26,12 @@
                         <li class="cart-discount-item">
                             <div class="cart-discount-item-label">
                                 <i class="icon" aria-hidden="true"><svg><use href="#icon-promotions" /></svg></i>
-                                <span class="cart-coupon-name">{{lang 'cart.automatic_discount'}}</span>
+                                <span class="cart-coupon-name">
+                                    {{lang 'cart.automatic_discount'}}
+                                    {{#if cart.order_based_auto_discount_max_limit_reached}}
+                                        <span class="cart-coupon-limit">{{lang 'cart.coupons.maximum_discount_applied'}}</span>
+                                    {{/if}}
+                                </span>
                             </div>
                             <div class="cart-discount-item-value">
                                 {{cart.order_based_auto_discount_total.formatted}}
@@ -48,11 +53,16 @@
                         <li class="cart-discount-item">
                             <div class="cart-discount-item-label">
                                 <i class="icon" aria-hidden="true"><svg><use href="#icon-promotions" /></svg></i>
-                                {{#if display_name}}
-                                    <span class="cart-coupon-name">{{display_name}} ({{code}})</span>
-                                {{else}}
-                                    <span class="cart-coupon-name">{{code}}</span>
-                                {{/if}}
+                                <span class="cart-coupon-name">
+                                    {{#if display_name}}
+                                        {{display_name}} ({{code}})
+                                    {{else}}
+                                        {{code}}
+                                    {{/if}}
+                                    {{#if has_max_limit_reached}}
+                                        <span class="cart-coupon-limit">{{lang 'cart.coupons.maximum_discount_applied'}}</span>
+                                    {{/if}}
+                                </span>
                             </div>
                             <div class="cart-discount-item-value">
                                 {{#if discount.value '===' 0}}-{{/if}}{{discount.formatted}}
@@ -86,6 +96,17 @@
         {{/each}}
     {{/if}}
     {{#if cart.shipping_handling.show_estimator}}
+        {{assignVar "hasBackorderedItem" 0}}
+        {{#each cart.items}}
+            {{#if stock_position.quantity_backordered}}
+                {{assignVar "hasBackorderedItem" 1}}
+            {{/if}}
+            {{#each options}}
+                {{#if linked_bundled_item.stock_position.quantity_backordered}}
+                    {{assignVar "hasBackorderedItem" 1}}
+                {{/if}}
+            {{/each}}
+        {{/each}}
         <li class="cart-total {{#if cart.multi_coupon_ui_enabled}}cart-total-shipping-estimator{{/if}}">
             <div class="cart-total-label">
                 <strong>{{lang 'cart.checkout.shipping'}}{{#unless cart.multi_coupon_ui_enabled}}:{{/unless}}</strong>
@@ -97,6 +118,9 @@
                 {{> components/cart/shipping-estimator-trigger}}
             {{/neither}}
             {{> components/cart/shipping-estimator cart.shipping_handling multi_coupon_ui_enabled=cart.multi_coupon_ui_enabled}}
+            {{#all cart.inventory_settings.show_default_shipping_expectation_prompt (getVar "hasBackorderedItem")}}
+                <p class="cart-shipping-expectation-message">{{cart.inventory_settings.default_shipping_expectation_prompt}}</p>
+            {{/all}}
         </li>
     {{/if}}
     {{#each cart.taxes}}

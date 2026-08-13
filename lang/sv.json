@@ -93,7 +93,8 @@
             "button": "Tillämpa",
             "coupon_code": "Ange din kupongkod",
             "code_label": "Kupong ({code})",
-            "remove": "Ta bort"
+            "remove": "Ta bort",
+            "maximum_discount_applied": "Maximal rabatt tillämpad"
         },
         "gift_certificates": {
             "apply_gift_certificate": "Använd presentkort",
@@ -151,6 +152,8 @@
         "currency_switch_promotion": "Kampanjer och presentkort som inte gäller för den nya valutan kommer att tas bort från kundvagnen. Är du säker på att du vill fortsätta?",
         "channel": "Butik: {code}",
         "channel_switch_warning": "Varningstext för byte av butik",
+        "locale_switch_warning": "Varningstext för byte av språk",
+        "locale": "Språk:",
         "newsletter_signup": "Registrera dig för vårt nyhetsbrev",
         "form_submit": "Skicka in",
         "no_preference": "Ingen preferens",
@@ -357,7 +360,7 @@
                 "heading": "Beställningsnummer{number}",
                 "order_contents": "Beställ innehåll",
                 "ship_to": "Frakta till",
-                "ship_to_multi": "Artiklar som skickas till {street}, {city}, {state}, {zip}, {country}",
+                "ship_to_multi": "Skicka till {street}, {city}, {state}, {zip}, {country}",
                 "ship_to_multi_text": "Beställningen skickas till flera adresser",
                 "pickup_details": "Uppgifter för upphämtning",
                 "bill_to": "Fakturera till",
@@ -722,10 +725,13 @@
     },
     "products": {
         "current_stock": "Nuvarande lager:",
+        "in_stock": "I lager",
         "quantity": "Kvantitet:",
         "change_product_options": "Ändra alternativ för {name}",
         "quantity_decrease": "Minska antalet {name}",
         "quantity_increase": "Öka antalet {name}",
+        "quantity_backordered": "{quantity} kommer att restnoteras",
+        "quantity_on_hand": "{quantity} redo att skickas",
         "quantity_error_message": "Kvantiteten får endast innehålla siffror",
         "purchase_units": "{quantity, plural, =0{0 enheter} one {# enhet} other {# enhet}}",
         "max_purchase_quantity": "Maximalt köp:",
@@ -813,6 +819,7 @@
         "gift_wrapping_available": "Alternativ tillgängliga",
         "quantity_min": "Den minsta köpbara kvantiteten är {quantity}",
         "quantity_max": "Den maximala köpbara kvantiteten är {quantity}",
+        "quantity_max_picklist": "Maximalt antal som kan köpas av {name} är {quantity}",
         "bulk_pricing": {
             "title": "Bulkprissättning",
             "view": "Köp i bulk och spara",
@@ -821,9 +828,16 @@
             "range": "Köp {min} {max, plural, =0{eller högre} other {- #}}",
             "percent": "och få {discount} rabatt",
             "price": "och få {discount} rabatt",
-            "fixed": "och betala endast {discount} vardera"
+            "fixed": "och betala endast {discount} vardera",
+            "fixed_both": {
+                "prefix": "och betala endast",
+                "suffix": "Varje"
+            }
         },
-        "card_default_image_alt": "Bilden kommer snart"
+        "card_default_image_alt": "Bilden kommer snart",
+        "featured_promotions": {
+            "more_offers": "fler erbjudanden"
+        }
     },
     "invoice": {
         "for_order": "{name} Faktura för beställningsnummer{id}",

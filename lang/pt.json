@@ -93,7 +93,8 @@
             "button": "Aplicar",
             "coupon_code": "Insira o código do seu cupom",
             "code_label": "Cupom ({code})",
-            "remove": "Remover"
+            "remove": "Remover",
+            "maximum_discount_applied": "Maximum discount applied"
         },
         "gift_certificates": {
             "apply_gift_certificate": "Aplicar vale-presente",
@@ -151,6 +152,8 @@
         "currency_switch_promotion": "Promoções e vales-presente que não se aplicarem à nova moeda serão removidos do seu carrinho. Deseja mesmo continuar?",
         "channel": "Loja: {code}",
         "channel_switch_warning": "Texto de aviso para troca de loja",
+        "locale_switch_warning": "Warning text for language switching",
+        "locale": "Language:",
         "newsletter_signup": "Assine nosso boletim informativo",
         "form_submit": "Enviar",
         "no_preference": "Nenhuma preferência",
@@ -357,7 +360,7 @@
                 "heading": "Pedido #{number}",
                 "order_contents": "Conteúdos do pedido",
                 "ship_to": "Enviar para",
-                "ship_to_multi": "Itens enviados para {street}, {city}, {state}, {zip}, {country}",
+                "ship_to_multi": "Ship to {street}, {city}, {state}, {zip}, {country}",
                 "ship_to_multi_text": "O pedido será enviado para vários endereços",
                 "pickup_details": "Informações sobre a retirada",
                 "bill_to": "Faturar para",
@@ -722,10 +725,13 @@
     },
     "products": {
         "current_stock": "Estoque atual:",
+        "in_stock": "in stock",
         "quantity": "Quantidade:",
         "change_product_options": "Alterar opções de {name}",
         "quantity_decrease": "Reduzir quantidade de {name}",
         "quantity_increase": "Aumentar quantidade de {name}",
+        "quantity_backordered": "{quantity} will be backordered",
+        "quantity_on_hand": "{quantity} ready to ship",
         "quantity_error_message": "A quantidade deve conter somente números",
         "purchase_units": "{quantity, plural, =0{0 unidades} one {# unidade} other {# unidades}}",
         "max_purchase_quantity": "Compra máxima:",
@@ -813,6 +819,7 @@
         "gift_wrapping_available": "Opções disponíveis",
         "quantity_min": "A quantidade mínima para comprar é de {quantity}",
         "quantity_max": "A quantidade máxima para comprar é de {quantity}",
+        "quantity_max_picklist": "The maximum purchasable quantity for {name} is {quantity}",
         "bulk_pricing": {
             "title": "Preços para grandes quantidades:",
             "view": "Compre em grande quantidade e economize",
@@ -821,9 +828,16 @@
             "range": "Compre {min} {max, plural, =0{or above} other {- #}}",
             "percent": "e receba {discount} de desconto",
             "price": "e receba {discount} de desconto",
-            "fixed": "e pague apenas {discount} cada"
+            "fixed": "e pague apenas {discount} cada",
+            "fixed_both": {
+                "prefix": "and pay only",
+                "suffix": "each"
+            }
         },
-        "card_default_image_alt": "Imagem em breve"
+        "card_default_image_alt": "Imagem em breve",
+        "featured_promotions": {
+            "more_offers": "more offers"
+        }
     },
     "invoice": {
         "for_order": "{name} Fatura do pedido #{id}",
