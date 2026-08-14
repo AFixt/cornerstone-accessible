@@ -74,6 +74,10 @@ $card-preview-zoom-bottom-offset:       6rem;
 .cart-header-item {
     padding-bottom: spacing("base");
 
+    @include breakpoint("medium") {
+        padding: $cart-item-spacing;
+    }
+
     &:last-child {
         text-align: right;
     }
@@ -115,6 +119,7 @@ $card-preview-zoom-bottom-offset:       6rem;
 
     @include breakpoint("medium") {
         display: table-cell; // 1
+        vertical-align: top;
     }
 
     .definitionList {
@@ -140,7 +145,7 @@ $card-preview-zoom-bottom-offset:       6rem;
 
     @include breakpoint("medium") {
         float: none;
-        padding: $cart-thumbnail-paddingVertical 0;
+        padding: $cart-item-spacing;
         width: grid-calc(1, $total-columns);
     }
 }
@@ -193,10 +198,12 @@ $card-preview-zoom-bottom-offset:       6rem;
 
     @include breakpoint("medium") {
         float: none;
-        width: grid-calc(2, $total-columns);
+        padding: $cart-item-spacing;
+        width: grid-calc(1, $total-columns);
 
         &:last-child {
             text-align: right;
+            width: grid-calc(2, $total-columns);
         }
     }
 }
@@ -212,7 +219,8 @@ $card-preview-zoom-bottom-offset:       6rem;
 .cart-item-quantity {
 
     @include breakpoint("medium") {
-        text-align: center;
+        text-align: left;
+        width: grid-calc(4, $total-columns);
     }
 }
 
@@ -227,6 +235,37 @@ $card-preview-zoom-bottom-offset:       6rem;
         }
     }
 
+    .cart-item-backorder-message {
+        margin-bottom: 0;
+        margin-left: calc(#{grid-calc(4, $total-columns)} + #{spacing("single")});
+        text-align: left;
+
+        @include breakpoint("small") {
+            margin-left: spacing("single");
+        }
+
+        @include breakpoint("medium") {
+            margin-left: 0;
+        }
+    }
+
+    .cart-item-option-stock {
+        margin-left: calc(#{grid-calc(4, $total-columns)} + #{spacing("single")});
+        margin-top: spacing("half");
+        text-align: left;
+
+        @include breakpoint("small") {
+            margin-left: spacing("single");
+        }
+
+        @include breakpoint("medium") {
+            margin-left: 0;
+        }
+
+        .cart-item-backorder-message {
+            margin-left: 0;
+        }
+    }
 }
 
 .cart-item-label {
@@ -401,6 +440,15 @@ $card-preview-zoom-bottom-offset:       6rem;
     }
 }
 
+// Shipping expectation prompt sits on its own full-width row below Shipping
+// in both the legacy and multi-coupon (enhanced) cart layouts.
+.cart-shipping-expectation-message {
+    clear: both;
+    text-align: left;
+    width: 100%;
+    margin: 0;
+}
+
 .cart-total-grandTotal {
     font-family: fontFamily("headingSans");
     font-size: fontSize("small");
@@ -442,7 +490,7 @@ $card-preview-zoom-bottom-offset:       6rem;
 
     .cart-total-with-savings {
         border-top: container("border");
-        
+
         .cart-total-label {
             font-size: fontSize("larger");
         }
@@ -476,13 +524,14 @@ $card-preview-zoom-bottom-offset:       6rem;
     .cart-total-gift-certificate, .cart-total-shipping-estimator {
         .cart-total-label {
             display: flex;
+            flex-wrap: wrap;
             gap: spacing("third");
 
             a, button {
                 color: stencilColor("optimizedCheckout-link-color");
                 text-decoration: none;
                 font-weight: fontWeight("normal");
-                
+
                 &:hover {
                     text-decoration: underline;
                 }
@@ -510,14 +559,14 @@ $card-preview-zoom-bottom-offset:       6rem;
             }
         }
 
-        
+
         .gift-certificate-add, .gift-certificate-cancel {
             color: stencilColor("optimizedCheckout-link-color");
             text-decoration: none;
             display: inline-flex;
             align-items: center;
             font-weight: fontWeight("normal");
-            
+
             &:hover {
                 text-decoration: underline;
             }
@@ -542,7 +591,7 @@ $card-preview-zoom-bottom-offset:       6rem;
                 color: stencilColor("optimizedCheckout-link-color");
                 text-decoration: none;
                 font-weight: fontWeight("normal");
-                
+
                 &:hover {
                     text-decoration: underline;
                 }
@@ -558,7 +607,7 @@ $card-preview-zoom-bottom-offset:       6rem;
     .shipping-estimate-value, .shipping-estimate-show {
         text-decoration: none;
     }
-    
+
     .cart-total-discounts {
         .cart-total-label {
             cursor: pointer;
@@ -566,7 +615,7 @@ $card-preview-zoom-bottom-offset:       6rem;
 
         .cart-discount-icon {
             transition: transform 0.3s ease;
-            
+
             &.is-open {
                 transform: rotate(180deg);
             }
@@ -619,7 +668,7 @@ $card-preview-zoom-bottom-offset:       6rem;
     width: 100%;
     padding-bottom: spacing("base");
     border-bottom: container("border");
-    
+
     @include breakpoint("small") {
         float: right;
         width: grid-calc(9, $total-columns);
@@ -650,7 +699,7 @@ $card-preview-zoom-bottom-offset:       6rem;
     display: inline-flex;
     align-items: center;
     font-weight: fontWeight("normal");
-    
+
     &:hover {
         color: stencilColor("optimizedCheckout-link-color");
         text-decoration: underline;
@@ -711,6 +760,13 @@ $card-preview-zoom-bottom-offset:       6rem;
 .cart-coupon-name {
     flex: 1;
     margin-left: spacing("sixth");
+    display: inline-flex;
+    flex-direction: column;
+
+    .cart-coupon-limit {
+        color: stencilColor("color-success");
+        font-size: fontSize("tiny");
+    }
 }
 
 .coupon-code-cancel,

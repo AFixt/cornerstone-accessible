@@ -13,7 +13,7 @@
         "powered_by": "Desarrollado por"
     },
     "home": {
-        "heading": "Página de inicio"
+        "heading": "Inicio"
     },
     "blog": {
         "recent_posts": "Publicaciones recientes",
@@ -93,7 +93,8 @@
             "button": "Aplicar",
             "coupon_code": "Ingresa tu código de cupón",
             "code_label": "Cupón ({code})",
-            "remove": "Quitar"
+            "remove": "Quitar",
+            "maximum_discount_applied": "Descuento máximo aplicado"
         },
         "gift_certificates": {
             "apply_gift_certificate": "Aplicar certificado de regalo",
@@ -151,6 +152,8 @@
         "currency_switch_promotion": "Las promociones y los certificados de regalo no aplicables a la nueva moneda se eliminarán de tu carrito. ¿Estás seguro de que deseas continuar?",
         "channel": "Tienda: {code}",
         "channel_switch_warning": "Texto de advertencia para cambio de tienda",
+        "locale_switch_warning": "Texto de advertencia para cambio de idioma",
+        "locale": "Idiomas",
         "newsletter_signup": "Regístrate para recibir nuestro boletín informativo",
         "form_submit": "Enviar",
         "no_preference": "No hay preferencia",
@@ -357,7 +360,7 @@
                 "heading": "Pedido n.° {number}",
                 "order_contents": "Contenido del pedido",
                 "ship_to": "Enviar a",
-                "ship_to_multi": "Artículos enviados a {street}, {city}, {state}, {zip}, {country}",
+                "ship_to_multi": "Envío a {street}, {city}, {state}, {zip} {country}",
                 "ship_to_multi_text": "El pedido se enviará a varias direcciones.",
                 "pickup_details": "Detalles de la recolección",
                 "bill_to": "Facturar a",
@@ -722,10 +725,13 @@
     },
     "products": {
         "current_stock": "Existencias actuales:",
+        "in_stock": "En existencias",
         "quantity": "Cantidad:",
         "change_product_options": "Cambiar las opciones de {name}",
         "quantity_decrease": "Disminuir la cantidad de {name}",
         "quantity_increase": "Aumentar la cantidad de {name}",
+        "quantity_backordered": "{quantity} estará en pedido pendiente",
+        "quantity_on_hand": "{quantity} listo para enviar",
         "quantity_error_message": "La cantidad debe contener solo números.",
         "purchase_units": "{quantity, plural, =0{0 units} one {# unit} other {# units}}",
         "max_purchase_quantity": "Compra máxima:",
@@ -795,8 +801,8 @@
         "choose_an_option": "Elige una opción",
         "select_one": "Selecciona una",
         "description": "Descripción",
-        "price_with_tax": "(Inc. {tax_label})",
-        "price_without_tax": "(Por ejemplo, {tax_label})",
+        "price_with_tax": "(Con {tax_label})",
+        "price_without_tax": "(Sin {tax_label})",
         "including_tax": "Incluye impuestos",
         "excluding_tax": "Excluyendo impuestos",
         "weight": "Peso:",
@@ -813,6 +819,7 @@
         "gift_wrapping_available": "Opciones disponibles",
         "quantity_min": "La cantidad mínima de compra es {quantity}",
         "quantity_max": "La cantidad máxima de compra es {quantity}",
+        "quantity_max_picklist": "La cantidad máxima que se puede comprar para {name} es {quantity}",
         "bulk_pricing": {
             "title": "Precios al por mayor:",
             "view": "Compra al por mayor y ahorra",
@@ -821,9 +828,16 @@
             "range": "Compra {min} {max, plural, =0{or above} other {- #}}",
             "percent": "y recibe {discount} de descuento",
             "price": "y recibe {discount} de descuento",
-            "fixed": "y paga solo {discount} cada uno"
+            "fixed": "y paga solo {discount} cada uno",
+            "fixed_both": {
+                "prefix": "y solo paga",
+                "suffix": "cada uno"
+            }
         },
-        "card_default_image_alt": "La imagen estará disponible próximamente"
+        "card_default_image_alt": "La imagen estará disponible próximamente",
+        "featured_promotions": {
+            "more_offers": "más ofertas"
+        }
     },
     "invoice": {
         "for_order": "{name} Factura del pedido n.° {id}",
